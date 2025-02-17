@@ -3,6 +3,10 @@ import { defineConfig, type UserConfigExport } from '@tarojs/cli'
 import devConfig from './dev'
 import prodConfig from './prod'
 
+import type { Plugin } from 'vite'
+import tailwindcss from 'tailwindcss'
+import { UnifiedViteWeappTailwindcssPlugin as uvtw } from 'weapp-tailwindcss/vite'
+
 // https://taro-docs.jd.com/docs/next/config#defineconfig-辅助函数
 export default defineConfig<'vite'>(async (merge, { command, mode }) => {
   const baseConfig: UserConfigExport<'vite'> = {
@@ -27,7 +31,29 @@ export default defineConfig<'vite'>(async (merge, { command, mode }) => {
       }
     },
     framework: 'react',
-    compiler: 'vite',
+    compiler: {
+      type: 'vite',
+      vitePlugins: [
+        {
+          // 通过 vite 插件加载 postcss,
+          name: 'postcss-config-loader-plugin',
+          config(config) {
+            // 加载 tailwindcss
+            if (typeof config.css?.postcss === 'object') {
+              config.css?.postcss.plugins?.unshift(tailwindcss())
+            }
+          },
+        },
+        uvtw({
+          // rem转rpx
+          rem2rpx: true,
+          // 除了小程序这些，其他平台都 disable
+          disabled: process.env.TARO_ENV === 'h5' || process.env.TARO_ENV === 'harmony' || process.env.TARO_ENV === 'rn',
+          // 由于 taro vite 默认会移除所有的 tailwindcss css 变量，所以一定要开启这个配置，进行css 变量的重新注入
+          injectAdditionalCssVarScope: true,
+        })
+      ] as Plugin[] // 从 vite 引入 type, 为了智能提示
+    },
     mini: {
       postcss: {
         pxtransform: {
